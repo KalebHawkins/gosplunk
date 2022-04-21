@@ -1,0 +1,5 @@
+dist/
+ansible/inv.yml
+ansible/vars.yml
+ansible/site.yml
+testdata/

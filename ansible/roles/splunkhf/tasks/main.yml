@@ -1,0 +1,167 @@
+---
+- name: configure firewall rules
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+  with_items:
+    - 443/tcp
+    - 8089/tcp
+    - 9997/tcp
+    - 514/udp
+
+- name: restart firewall service
+  systemd:
+    name: firewalld
+    state: restarted
+
+- name: remove old forwarder if there
+  dnf:
+    name: splunk
+    state: absent
+
+- name: remove /etc/systemd/system/Splunkd.service
+  file:
+    path: /etc/systemd/system/Splunkd.service
+    state: absent
+
+- name: remove any old config
+  shell: rm -rf /appl/splunk/*
+
+- name: create mount points
+  file: 
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /appl
+    - /appl/splunk
+
+- name: create soft link from /appl/splunk to /opt/splunk
+  file:
+    src: /appl/splunk
+    dest: /opt/splunk
+    state: link
+
+- name: create a new primary partition for LVM
+  parted:
+    device: "{{ item }}"
+    number: 1
+    flags: [ lvm ]
+    state: present
+  with_items:
+    - /dev/sdb
+
+- name: create volume group
+  community.general.lvg:
+    vg: splunkvg
+    pvs: 
+      - /dev/sdb1
+    pvresize: true
+
+- name: create Logical Volume
+  lvol:
+    vg: splunkvg
+    lv: splunklv
+    size: +100%FREE
+
+- name: create Filesystem on LVM
+  filesystem:
+    fstype: ext4
+    dev: /dev/mapper/splunkvg-splunklv
+
+- name: mount splunklv
+  ansible.posix.mount:
+    path: /appl/splunk
+    src: /dev/mapper/splunkvg-splunklv
+    fstype: ext4
+    opts: defaults
+    state: mounted
+
+- name: install python3 pip package
+  yum:
+    update_cache: true
+    state: present
+    name:
+      - python3-pip
+
+- name: install pexpect
+  pip:
+    name: pexpect
+    state: present
+    executable: /usr/bin/pip3
+
+- name: download splunk enterprise rpm
+  get_url: 
+    url: https://download.splunk.com/products/splunk/releases/8.2.6/linux/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm
+    dest: /tmp/
+    mode: '0644'
+
+- name: install splunk enterprise
+  dnf:
+    name: /tmp/splunk-8.2.6-a6fe1ee8894b-linux-2.6-x86_64.rpm
+    state: present
+    disable_gpg_check: true
+
+# TODO: Download splunkclouduf.spl
+# - name: download splunkclouduf.spl
+#   uri: 
+#     method: POST
+#     url: "{{ splunkCloudUrl }}"
+#     dest: /tmp/splunkclouduf.spl
+#     body:
+#       username: "{{ splunkUsername }}"
+#       password: "{{ splunkPassword }}"
+
+- name: copy splunkclouduf.spl 
+  copy:
+    src: splunkclouduf.spl
+    dest: /opt/splunk/splunkclouduf.spl
+
+- name: hash splunk admin password
+  command: /opt/splunk/bin/splunk hash-passwd "{{ splunkPassword }}"
+  register: passhash
+
+- name: create user-seed.conf
+  copy: 
+    content: |
+      [user_info]
+      USERNAME = {{ splunkUsername }}
+      HASHED_PASSWORD = {{ passhash.stdout }}
+    dest: /opt/splunk/etc/system/local/user-seed.conf
+
+- name: stop Splunkd 
+  shell: /opt/splunk/bin/splunk stop
+
+- name: set connection to deployment server
+  expect:
+    command: /opt/splunk/bin/splunk set deploy-poll {{ splunkDeployServer }} --answer-yes --accept-license --no-prompt
+    responses:
+      (.*)username(.*): "{{ splunkUsername }}"
+      (.*)Password(.*): "{{ splunkPassword }}"
+    echo: no
+
+- name: start Splunkd 
+  shell: /opt/splunk/bin/splunk start
+
+- name: install heavy forwarder app
+  shell: /opt/splunk/bin/splunk install app /opt/splunk/splunkclouduf.spl -auth {{ splunkUsername }}:{{ splunkPassword }} --answer-yes --accept-license
+
+- name: stop Splunkd
+  shell: /opt/splunk/bin/splunk stop
+
+- name: chown -R splunk:splunk /opt/splunk
+  file:
+    path: /opt/splunk
+    state: directory
+    recurse: true
+    owner: splunk
+    group: splunk
+
+- name: set splunk to start at boot
+  command: /opt/splunk/bin/splunk enable boot-start -systemd-managed 1 --accept-license --no-prompt --answer-yes
+
+- name: restart Splunkd 
+  systemd:
+    name: Splunkd
+    state: restarted
+    enabled: true
