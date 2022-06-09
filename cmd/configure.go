@@ -19,7 +19,9 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/apenella/go-ansible/pkg/execute"
 	"github.com/apenella/go-ansible/pkg/options"
@@ -79,6 +81,10 @@ type AnsibleVars struct {
 	RealmPassword         string      `yaml:"realmPassword"`
 	RealmGroup            string      `yaml:"realmGroup"`
 	RealmOU               string      `yaml:"realmOU"`
+	AnsibleHttpProxy      string      `yaml:"ansibleHttpProxy"`
+	AnsibleHttpProxyPort  string      `yaml:"ansibleHttpProxyPort"`
+	AnsibleHttpsProxy     string      `yaml:"ansibleHttpsProxy"`
+	AnsibleHttpsProxyPort string      `yaml:"ansibleHttpsProxyPort"`
 }
 
 func generateAnsibleVars() error {
@@ -102,6 +108,28 @@ func generateAnsibleVars() error {
 		RealmPassword:         viper.GetString("realm.password"),
 		RealmGroup:            viper.GetString("realm.group"),
 		RealmOU:               viper.GetString("realm.organizationUnit"),
+	}
+
+	httpProxy := viper.GetString("config.ansible.httpProxy")
+	httpsProxy := viper.GetString("config.ansible.httpsProxy")
+
+	if httpProxy != "" {
+		httpProxyPort := strings.Split(httpProxy, ":")[2]
+		ansVars.AnsibleHttpProxyPort = httpProxyPort
+		url, err := url.Parse(httpProxy)
+		if err != nil {
+			return err
+		}
+		ansVars.AnsibleHttpProxy = url.Hostname()
+	}
+	if httpsProxy != "" {
+		httpsProxyPort := strings.Split(httpsProxy, ":")[2]
+		ansVars.AnsibleHttpsProxyPort = httpsProxyPort
+		url, err := url.Parse(httpsProxy)
+		if err != nil {
+			return err
+		}
+		ansVars.AnsibleHttpsProxy = url.Hostname()
 	}
 
 	yml, err := yaml.Marshal(ansVars)
