@@ -187,7 +187,7 @@ func generatePlaybook() error {
     - crowdstrike
     - qualys
     - splunkhf
-    - domianjoin
+    - domainjoin
 `
 
 	httpProxy := viper.GetString("ansible.httpProxy")
