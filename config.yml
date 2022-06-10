@@ -50,8 +50,8 @@ qualys:
 ansible:
   sshKeyPath: /root/.ssh/id_rsa
   username: root
-  httProxy: http://127.0.0.1:8989
-  httpProxy: https://127.0.0.1:8989
+  httpProxy: http://127.0.0.1:8989
+  httpsProxy: https://127.0.0.1:8989
 # Splunk deploy server username and password along with the deploy server to point the forwarders too.
 splunk:
   deployUsername: user
