@@ -7,5 +7,15 @@
     password: "{{ rhel_password }}"
     pool_ids: "{{ rhel_poolids | list }}"
     force_register: true
+  when: ansibleHttpsProxy is not defined
+
+- name: register and subscribe to red hat network
+  community.general.redhat_subscription:
+    state: present
+    username: "{{ rhel_username }}"
+    password: "{{ rhel_password }}"
+    pool_ids: "{{ rhel_poolids | list }}"
+    force_register: true
     server_proxy_hostname: "{{ ansibleHttpsProxy }}"
     server_proxy_port: "{{ ansibleHttpsProxyPort }}"
+  when: ansibleHttpsProxy is defined
