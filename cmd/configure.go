@@ -103,11 +103,11 @@ func generateAnsibleVars() error {
 		SplunkUsername:        viper.GetString("splunk.deployUsername"),
 		SplunkPassword:        viper.GetString("splunk.deployPassword"),
 		SplunkDeployServer:    viper.GetString("splunk.deployServer"),
-		RealmControllers:      viper.GetStringSlice("realm.controllers"),
-		RealmUsername:         viper.GetString("realm.username"),
-		RealmPassword:         viper.GetString("realm.password"),
-		RealmGroup:            viper.GetString("realm.group"),
-		RealmOU:               viper.GetString("realm.organizationUnit"),
+		// RealmControllers:      viper.GetStringSlice("realm.controllers"),
+		// RealmUsername:         viper.GetString("realm.username"),
+		// RealmPassword:         viper.GetString("realm.password"),
+		// RealmGroup:            viper.GetString("realm.group"),
+		// RealmOU:               viper.GetString("realm.organizationUnit"),
 	}
 
 	httpProxy := viper.GetString("config.ansible.httpProxy")
@@ -187,7 +187,6 @@ func generatePlaybook() error {
     - crowdstrike
     - qualys
     - splunkhf
-    - domainjoin
 `
 
 	httpProxy := viper.GetString("ansible.httpProxy")
